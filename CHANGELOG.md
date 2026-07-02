@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.0.1 — 2026-07-02
+
+- Fixed page search: results are now ranked by how well the title matches (exact > starts-with > word boundary > contains), so a page named exactly what you typed comes first.
+- Just-created pages are found immediately (pages are now also scanned directly by name; the workspace search index lags behind).
+- Page results raised from 6 to 8.
+
 ## v1.0.0 — 2026-07-02
 
 - Move the caret line, a whole block (parent + children), or a multi-line selection to another destination with a floating picker anchored at the selection.
