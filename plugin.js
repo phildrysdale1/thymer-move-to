@@ -618,6 +618,19 @@ class Plugin extends AppPlugin {
 		}
 		const pageSeen = new Set(), lineSeen = new Set();
 		const pages = [], lines = [];
+		// rank pages ourselves (searchByQuery returns fuzzy hits in arbitrary
+		// order): exact title, then prefix, then word-boundary, then contains
+		const qn = mvNorm(q.replace(/\+/g, ' '));
+		const rankPages = () => {
+			for (const p of pages) {
+				const nn = mvNorm(p.name);
+				p.score = nn === qn ? 0
+					: nn.startsWith(qn) ? 1
+					: (nn.indexOf(' ' + qn) >= 0 ? 2
+					: (nn.indexOf(qn) >= 0 ? 3 : 4));
+			}
+			pages.sort((a, b) => a.score - b.score || a.name.length - b.name.length);
+		};
 		const considerLine = (guid, segments, pageFn) => {
 			if (!guid || lineSeen.has(guid) || lines.length >= 24) return;
 			lineSeen.add(guid);
@@ -632,10 +645,27 @@ class Plugin extends AppPlugin {
 			if (!info || !info.guid) return;
 			lines.push({ lineGuid: guid, pageGuid: info.guid, text, page: info.name || '' });
 		};
-		// 1) loaded lines directly (sees fresh content — the search index lags);
-		//    cheap raw-text prefilter + time budget keep this fast
 		const byGuid = (window.g_universe && window.g_universe.itemsByGuid) || {};
 		const nowMs = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
+		// 1) all records by NAME directly — searchByQuery's index lags, so a
+		//    just-created page is invisible to it; this scan is authoritative
+		try {
+			const recs = (await this.data.getAllRecords()) || [];
+			const tR = nowMs();
+			for (const r of recs) {
+				if (nowMs() - tR > 120) break;
+				const g = rowGuid(r);
+				if (!g || pageSeen.has(g)) continue;
+				const name = (r.getName && r.getName()) || '';
+				if (!name) continue;
+				const nn = mvNorm(name);
+				if (!parts.every((p) => nn.includes(p))) continue;
+				pageSeen.add(g);
+				pages.push({ rec: r, guid: g, name });
+			}
+		} catch (e) {}
+		// 2) loaded lines directly (sees fresh content — same index-lag reason);
+		//    cheap raw-text prefilter + time budget keep this fast
 		const t0 = nowMs();
 		for (const guid in byGuid) {
 			if (lines.length >= 24 || nowMs() - t0 > 150) break;
@@ -653,8 +683,9 @@ class Plugin extends AppPlugin {
 				return r ? { guid: it.rguid, name: r.getName && r.getName() } : null;
 			});
 		}
+		rankPages();
 		this.renderDestResults(list, pages, lines, parts, true);
-		// 2) workspace-wide search per term, merged in (token-guarded)
+		// 3) workspace-wide search per term, merged in (token-guarded)
 		for (const t of terms) {
 			let res;
 			try { res = await this.data.searchByQuery(t, 40); } catch (e) { res = {}; }
@@ -675,6 +706,7 @@ class Plugin extends AppPlugin {
 			}
 		}
 		if (my !== this.searchToken) return;
+		rankPages();
 		this.renderDestResults(list, pages, lines, parts, false);
 	}
 
@@ -688,7 +720,7 @@ class Plugin extends AppPlugin {
 		}
 		if (pages.length) {
 			this.sec(list, 'Pages');
-			for (const p of pages.slice(0, 6)) {
+			for (const p of pages.slice(0, 8)) {
 				const opt = document.createElement('div');
 				opt.className = 'mv-opt';
 				opt.innerHTML = `<span class="ti ti-file"></span><span class="mv-opt-text">${mvSnippetHTML(p.name, parts)}</span>`;
