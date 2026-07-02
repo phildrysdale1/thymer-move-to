@@ -4,6 +4,8 @@ Move To is a [Thymer](https://thymer.com) plugin that moves the line you're on, 
 
 Press the shortcut (default `Cmd+Shift+M` / `Ctrl+Shift+M`) or run **Move to…** from the Command Palette, and a small picker opens right at your selection. Search for the destination, hit Enter, done. The content is *moved*, not re-typed: references, dates, tags and the whole subtree structure survive intact, because it's the same move operation as dragging lines around in the editor.
 
+![Moving a block and a multi-line selection to another page with the Move To picker](assets/move-to-demo.gif)
+
 ## Features
 
 - **Three scopes, picked automatically:**
