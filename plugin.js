@@ -744,16 +744,27 @@ class Plugin extends AppPlugin {
 		const guid = rowGuid(rec);
 		const name = rec.getName ? rec.getName() : 'Page';
 		const moved = (this.scope && this.scope.movedSet) || new Set();
-		let headings = [];
+		let headings = [], hasContent = false;
 		try {
 			const items = await rec.getLineItems();
 			headings = items
 				.filter((li) => isHeading(li) && !moved.has(liGuid(li)))
 				.map((li) => ({ guid: liGuid(li), text: lineText(li), size: headingSize(li) }));
+			// real content (non-empty lines that aren't the ones being moved) makes
+			// Top vs Bottom a meaningful choice; an empty page makes them identical
+			hasContent = topLevelItems(items, guid).some((li) => !moved.has(liGuid(li)) && !isEmptyLine(li));
 		} catch (e) {}
-		if (!headings.length) { this.moveNow({ kind: 'page', guid, name }); return; }
+		// empty page (or nothing but the lines being moved): top == bottom, so
+		// move straight there without a chooser
+		if (!hasContent) { this.moveNow({ kind: 'page', guid, name }); return; }
 		this.resetDestList(list);
 		this.sec(list, name + ' · where?');
+		// Top is listed first but Bottom stays the default (see setDestSel below).
+		const top = document.createElement('div');
+		top.className = 'mv-opt';
+		top.innerHTML = `<span class="ti ti-arrow-bar-to-up"></span><span class="mv-opt-text">Top of page</span>`;
+		this.addDestOpt(list, top, () => this.moveNow({ kind: 'page', guid, name, atTop: true }));
+		const bottomIdx = this.destOpts.length;
 		const bottom = document.createElement('div');
 		bottom.className = 'mv-opt';
 		bottom.innerHTML = `<span class="ti ti-arrow-bar-to-down"></span><span class="mv-opt-text">Bottom of page</span><span class="mv-opt-sub">default</span>`;
@@ -765,6 +776,8 @@ class Plugin extends AppPlugin {
 			opt.innerHTML = `<span class="ti ti-heading"></span><span class="mv-opt-text">${esc(h.text || 'Heading')}</span>`;
 			this.addDestOpt(list, opt, () => this.moveNow({ kind: 'page', guid, name, afterHeadingGuid: h.guid, headingText: h.text }));
 		}
+		// keep Bottom highlighted as the default (Enter picks it) even though Top is first
+		this.setDestSel(bottomIdx);
 	}
 
 	displayText(segments) {
@@ -887,6 +900,12 @@ class Plugin extends AppPlugin {
 					} else {
 						parentTarget = siblingParent(ditems, heading, destRec); anchor = heading;
 					}
+				} else if (dest.atTop) {
+					// prepend above existing content: a null anchor makes each root
+					// the FIRST top-level line, and the reverse iteration below
+					// restores their source order at the top of the page
+					parentTarget = destRec; anchor = null;
+					destLabel += ' › Top';
 				} else {
 					parentTarget = destRec;
 					anchor = lastOf(topLevelItems(await destRec.getLineItems(), rowGuid(destRec)).filter(notMoved));
@@ -906,13 +925,13 @@ class Plugin extends AppPlugin {
 		}
 
 		// Move the roots (subtrees ride along), preserving order. Verified
-		// semantics: record + null anchor APPENDS → forward; every other case
-		// inserts right after the anchor (or FIRST among children when null) →
-		// reverse so the final order matches the source.
+		// semantics: a null anchor PREPENDS (item becomes the FIRST child) at both
+		// the record and line level; a real anchor inserts right AFTER it. Either
+		// way each moved item lands ahead of the previously moved one, so iterate
+		// the roots in reverse in ALL cases to keep the final order matching source.
 		let moved = 0;
 		const movedGuids = new Set();
-		const forward = parentTarget === destRec && !anchor;
-		const order = forward ? roots : [...roots].reverse();
+		const order = [...roots].reverse();
 		for (const li of order) {
 			try { await li.move(parentTarget, anchor); moved++; movedGuids.add(liGuid(li)); await wait(40); } catch (e) {}
 		}
@@ -972,6 +991,7 @@ function liRaw(li) { try { return (li && li._getItem) ? (li._getItem() || {}) : 
 function liGuid(li) { return liRaw(li).guid || null; }
 function liType(li) { return liRaw(li).type || 'text'; }
 function isHeading(li) { return liType(li) === 'heading'; }
+function isEmptyLine(li) { return liType(li) === 'text' && lineText(li) === ''; }
 function headingSize(li) { const mp = liRaw(li).mp; return (mp && mp.hsize) || 1; }
 function lineText(li) {
 	const ts = liRaw(li).ts; if (!Array.isArray(ts)) return '';
