@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.1.0 — 2026-07-03
+
+- New **Top of page** placement: picking a destination page with content now offers *Top of page*, *Bottom of page* (still the default on Enter), and its headings. Empty pages skip the extra step.
+- Fixed: moving several lines to an *empty* destination (an empty page, an empty heading section) placed them in reverse order. Single-line moves and destinations with content were unaffected.
+
 ## v1.0.1 — 2026-07-02
 
 - Fixed page search: results are now ranked by how well the title matches (exact > starts-with > word boundary > contains), so a page named exactly what you typed comes first.

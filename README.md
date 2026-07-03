@@ -14,7 +14,7 @@ Press the shortcut (default `Cmd+Shift+M` / `Ctrl+Shift+M`) or run **Move to…*
   - a caret on a plain line just moves that line
 - **Destinations:**
   - **Today's Journal** (default — just hit Enter)
-  - **any page**, at the bottom or under a heading you pick from a list
+  - **any page**, at the top, at the bottom, or under a heading you pick from a list
   - **any individual line**, anywhere in the workspace
 - **Fast search** over pages and lines. Use `+` to require several words: `project+monday` matches lines containing both. Matched words are highlighted.
 - **Indent toggle** (bottom left): nest the moved content *under* the chosen heading/line, or place it directly *after* it as a sibling. Your choice is remembered.
@@ -26,7 +26,7 @@ Press the shortcut (default `Cmd+Shift+M` / `Ctrl+Shift+M`) or run **Move to…*
 1. Put the caret on the line you want to move — or select several lines.
 2. Press `Cmd+Shift+M` (`Ctrl+Shift+M` on Windows/Linux), or run **Move to…** from the Command Palette.
 3. Hit Enter to send it to today's Journal, or type to search pages and lines.
-   - Picking a page with headings shows one more step: *Bottom of page* or a specific heading.
+   - Picking a page with content shows one more step: *Top of page*, *Bottom of page* (the default on Enter), or a specific heading. Empty pages skip this.
 4. The picker header shows what's being moved. If the line has children you can switch between **Whole block** and **Line only** there.
 5. Use the indent button (bottom left) to choose between nesting under the target and placing after it.
 
