@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.2.0 — 2026-07-11
+
+- The destination picker now looks and searches like Thymer's native command palette: the same surface, mono font, corner radius, selected-row accent, and crisp match highlight.
+- Every result shows the record's own icon (or its collection's icon) instead of a generic glyph, so pages and lines are easier to tell apart at a glance.
+- Better search: page titles are scanned across the whole workspace and ranked by match quality (exact > starts-with > word boundary > contains), with more results shown (pages 12, lines 10).
+- Hovering a line result now shows a floating preview of its full text (a line can be a whole paragraph the row truncates), with the matched words highlighted.
+- Type a date (e.g. `tomorrow`, `next friday`, `2026-07-20`, `yesterday`) to move the content into that day's Journal, not just today's.
+
 ## v1.1.0 — 2026-07-03
 
 - New **Top of page** placement: picking a destination page with content now offers *Top of page*, *Bottom of page* (still the default on Enter), and its headings. Empty pages skip the extra step.

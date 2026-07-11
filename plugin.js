@@ -23,10 +23,16 @@ const CSS = `
 .mv-pop {
 	position: fixed; z-index: 99999;
 	width: min(640px, 92vw);
-	background: var(--mv-surface, var(--app-bg, #26262b));
-	border: 1px solid var(--mv-border, rgba(127,127,127,.4)); border-radius: 10px;
+	/* the native command palette's elevated surface + typography, so the picker
+	 * reads as a first-party popover, theme-following (falls back to the
+	 * JS-computed surface when the cmdpal vars aren't present) */
+	background: var(--cmdpal-bg-color, var(--mv-surface, var(--app-bg, #26262b)));
+	color: var(--cmdpal-fg-color, var(--text-color, #ddd));
+	font-family: var(--font-mono, inherit);
+	border: 1px solid var(--mv-border, rgba(127,127,127,.4));
+	border-radius: var(--radius-larger, 10px);
 	box-shadow: var(--mv-shadow, 0 16px 48px rgba(0,0,0,.5)); overflow: hidden;
-	font-size: 13px; color: var(--text-color, #ddd);
+	font-size: 13px;
 }
 .mv-head {
 	display: flex; align-items: center; gap: 8px; padding: 8px 8px 8px 12px;
@@ -43,26 +49,52 @@ const CSS = `
 	background: var(--ed-button-bg, transparent); color: var(--ed-button-color, var(--text-color, #ddd));
 }
 .mv-scope:hover { filter: brightness(1.18); }
-.mv-scope.mv-on { color: var(--ed-button-primary-bg, #3aa37f); border-color: var(--ed-button-primary-bg, #3aa37f); }
+/* mid accent (500 on dark / 700 on light, set from surface luminance) — matches
+   the line-preview highlight; --ed-button-primary-bg (700) was too dark on dark */
+.mv-scope.mv-on { color: var(--mv-accent, #3aa37f); border-color: var(--mv-accent, #3aa37f); }
 .mv-input {
 	width: 100%; box-sizing: border-box; border: none; outline: none;
-	padding: 10px 12px; font-size: 13px; background: transparent; color: var(--text-color, #eee);
-	border-bottom: 1px solid rgba(127,127,127,.2);
+	padding: 10px 12px; font-size: var(--text-size-small, .875rem); font-family: inherit;
+	background: transparent; color: var(--cmdpal-fg-color, var(--text-color, #eee));
+	border-bottom: 1px solid var(--divider-color, rgba(127,127,127,.2));
 }
-.mv-list { max-height: 300px; overflow-y: auto; }
+.mv-list { max-height: 300px; overflow-y: auto; padding-bottom: 8px; }
 .mv-opt {
-	padding: 8px 12px; cursor: pointer; font-size: 13px;
+	padding: 5px 10px; cursor: pointer;
+	font-size: var(--text-size-small, .875rem); line-height: 16px; font-weight: var(--font-weight-normal, 400);
 	display: flex; align-items: center; gap: 8px;
-	color: var(--text-color, #ddd);
+	color: var(--cmdpal-fg-color, var(--text-color, #ddd));
 }
-.mv-opt:hover, .mv-opt.mv-active { background: rgba(127,127,127,.16); }
+.mv-opt:hover:not(.mv-active) { background: rgba(127,127,127,.12); }
+/* selection = native command-palette selection colours (accent bar); accent is
+   reserved for the active row, NOT matched letters (those are just bold) */
+.mv-opt.mv-active { background: var(--cmdpal-selected-bg-color, var(--ed-button-primary-bg, #3aa37f)); color: var(--cmdpal-selected-fg-color, #fff); }
+.mv-opt.mv-active .ti, .mv-opt.mv-active .mv-opt-sub { color: var(--cmdpal-selected-fg-color, #fff); opacity: .85; }
 .mv-opt .ti { opacity: .7; font-size: 14px; flex: 0 0 auto; }
 .mv-opt-text { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mv-opt-text b { color: var(--ed-button-primary-bg, #3aa37f); font-weight: 600; }
+/* exactly native's match highlight (.autocomplete--hilite): brightest contrast
+   colour + bold, so matched letters read crisp against the muted base text */
+.mv-opt-text b { color: var(--cmdpal-hilite-color, var(--color-blackwhite-0, #fff)); font-weight: var(--font-weight-bold, 700); }
 .mv-opt-sub { opacity: .55; font-size: 11.5px; flex: 0 0 auto; max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mv-sec { padding: 6px 12px 2px; font-size: 10.5px; letter-spacing: .04em; text-transform: uppercase; opacity: .45; }
 .mv-indent-1 { padding-left: 26px; }
 .mv-indent-2 { padding-left: 40px; }
+.mv-linepreview {
+	/* above the picker (99999); appended to <body>, so it needs its own high z */
+	position: fixed; z-index: 100002; max-width: 440px; box-sizing: border-box;
+	padding: 10px 12px; border-radius: 8px; pointer-events: none;
+	background: var(--cmdpal-bg-color, var(--mv-surface, #26262b));
+	color: var(--cmdpal-fg-color, var(--text-color, #ddd));
+	border: 1px solid var(--mv-border, rgba(127,127,127,.4));
+	box-shadow: 0 12px 40px rgba(0,0,0,.5);
+	font-family: var(--font-mono, inherit); font-size: var(--text-size-small, .875rem); line-height: 1.5;
+	max-height: 60vh; overflow-y: auto;
+}
+.mv-lp-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+/* mid accent so the match pops without being harsh: 500 on a dark surface,
+   the darker 700 on a light one (set from surface luminance in JS) */
+.mv-lp-text b { font-weight: var(--font-weight-bold, 700); color: var(--mv-accent, var(--color-primary-500, #4caea1)); }
+.mv-lp-ctx { margin-top: 8px; padding-top: 6px; border-top: 1px solid rgba(127,127,127,.2); opacity: .6; font-size: 11.5px; }
 .mv-foot {
 	display: flex; align-items: center; gap: 8px; padding: 6px 10px;
 	border-top: 1px solid rgba(127,127,127,.18); background: rgba(127,127,127,.07);
@@ -74,7 +106,8 @@ const CSS = `
 	background: var(--ed-button-bg, transparent); color: var(--ed-button-color, var(--text-color, #ddd));
 }
 .mv-ibtn:hover { filter: brightness(1.18); }
-.mv-ibtn.mv-on { color: var(--ed-button-primary-bg, #3aa37f); border-color: var(--ed-button-primary-bg, #3aa37f); }
+/* same accent as the scope toggle + preview highlight: 500 on dark, 700 on light */
+.mv-ibtn.mv-on { color: var(--mv-accent, #3aa37f); border-color: var(--mv-accent, #3aa37f); }
 .mv-hint { opacity: .5; font-size: 11px; margin-left: auto; }
 
 .mv-settings-backdrop {
@@ -137,6 +170,9 @@ class Plugin extends AppPlugin {
 	destOpts = [];
 	destSel = 0;
 	moving = false;
+	collMap = {};           // collection guid -> {name, icon} (built on picker open)
+	recordsCache = [];      // all workspace records, snapshotted on picker open
+	linePreviewEl = null;   // floating full-text preview shown on line hover
 
 	onLoad() {
 		this.loadSettings();
@@ -153,6 +189,10 @@ class Plugin extends AppPlugin {
 		});
 		this.hotkeyHandler = (e) => {
 			if (!this.matchesHotkey(e)) return;
+			// Yield the shortcut to the Quick Capture plugin while its capture box
+			// is open: there, ⌘⇧M targets that box's destination picker instead of
+			// moving the scratch line. Deterministic regardless of plugin load order.
+			if (document.querySelector('.panel[data-qc-modal]')) return;
 			e.preventDefault(); e.stopPropagation();
 			if (this.popEl) this.close();
 			else this.open();
@@ -275,6 +315,22 @@ class Plugin extends AppPlugin {
 		return this.isDarkTheme()
 			? '0 16px 48px rgba(0,0,0,.5), 0 3px 10px rgba(0,0,0,.4)'
 			: '0 10px 34px rgba(0,0,0,.14), 0 2px 6px rgba(0,0,0,.08)';
+	}
+
+	// Accent for the toggle buttons + line-preview match highlight: the mid step
+	// (--color-primary-500) on a dark surface, the darker step (700) on a light
+	// one. Decided by the actual surface luminance rather than an html.is-light
+	// class, so it's correct even for custom themes that don't set those classes.
+	accentColor() {
+		return this.isLightSurface()
+			? 'var(--color-primary-700, #2f8873)'
+			: 'var(--color-primary-500, #4caea1)';
+	}
+
+	isLightSurface() {
+		const m = /(\d+)[,\s]+(\d+)[,\s]+(\d+)/.exec(this.themeSurfaceColor() || '');
+		if (!m) return !this.isDarkTheme();
+		return (0.2126 * +m[1] + 0.7152 * +m[2] + 0.0722 * +m[3]) > 140;
 	}
 
 	// ---- scope: what is being moved -------------------------------------------
@@ -413,11 +469,17 @@ class Plugin extends AppPlugin {
 		this.scope = scope;
 		this.blockScope = true;
 
+		// snapshot the full record set (names are searched directly, like the
+		// native @ picker) and load collection names/icons for the result labels
+		try { this.recordsCache = this.data.getAllRecords() || []; } catch (e) { this.recordsCache = []; }
+		this.loadCollMap();
+
 		const pop = document.createElement('div');
 		pop.className = 'mv-pop';
 		pop.style.setProperty('--mv-surface', this.themeSurfaceColor());
 		pop.style.setProperty('--mv-border', this.themeBorderColor());
 		pop.style.setProperty('--mv-shadow', this.themeShadow());
+		pop.style.setProperty('--mv-accent', this.accentColor());
 		pop.innerHTML = `
 			<div class="mv-head">
 				<span class="ti ti-send"></span>
@@ -425,7 +487,7 @@ class Plugin extends AppPlugin {
 				<button class="mv-scope" style="display:none"></button>
 				<span class="mv-x" title="Close"><span class="ti ti-x"></span></span>
 			</div>
-			<input class="mv-input" type="text" placeholder='Search pages & lines… ("+" matches words anywhere)' />
+			<input class="mv-input" type="text" placeholder='Search pages, lines, or a date for the Journal (e.g. "tomorrow")…' />
 			<div class="mv-list"></div>
 			<div class="mv-foot">
 				<button class="mv-ibtn mv-indent"><span class="ti ti-indent-increase"></span><span class="mv-indent-lbl"></span></button>
@@ -553,6 +615,7 @@ class Plugin extends AppPlugin {
 		clearTimeout(this.searchTimer);
 		this.searchToken++;
 		this.destOpts = []; this.destSel = 0;
+		this.hideLinePreview();
 		if (this.outsideHandler) { document.removeEventListener('pointerdown', this.outsideHandler, true); this.outsideHandler = null; }
 		if (this.popEl) { this.popEl.remove(); this.popEl = null; }
 		this.scope = null;
@@ -585,12 +648,96 @@ class Plugin extends AppPlugin {
 
 	resetDestList(list) {
 		this.destOpts = []; this.destSel = 0;
+		this.hideLinePreview();
 		list.innerHTML = '';
 	}
 
 	sec(list, text) {
 		const h = document.createElement('div'); h.className = 'mv-sec'; h.textContent = text;
 		list.appendChild(h);
+	}
+
+	// collection guid -> {name, icon}, for the "which collection" result labels
+	async loadCollMap() {
+		try {
+			const cols = await this.data.getAllCollections();
+			const m = {};
+			for (const c of (cols || [])) {
+				let g = null; try { g = c._getRow ? c._getRow().guid : (c.guid || null); } catch (e) {}
+				let n = ''; try { n = c.getName ? c.getName() : ''; } catch (e) {}
+				let ic = ''; try { ic = (c.getIcon && c.getIcon()) || ''; } catch (e) {}
+				if (g) m[g] = { name: n, icon: ic };
+			}
+			this.collMap = m;
+		} catch (e) {}
+	}
+	collName(guid) { const e = guid && this.collMap[guid]; return (e && e.name) || ''; }
+	collIcon(guid) { const e = guid && this.collMap[guid]; return (e && e.icon) || ''; }
+	collGuidOf(rec) { try { return rec && rec._getRow ? rec._getRow().pguid : null; } catch (e) { return null; } }
+	// Icon shown before a result, native-style: the record's own icon, else its
+	// collection's icon, else a generic page glyph.
+	iconOf(rec, collGuid) {
+		let ic = null;
+		try { ic = rec && rec.getIcon ? (rec.getIcon(true) || rec.getIcon()) : null; } catch (e) {}
+		return ic || this.collIcon(collGuid) || 'ti-file';
+	}
+	iconForPage(pageGuid, collGuid) {
+		let rec = null; try { rec = pageGuid ? this.data.getRecord(pageGuid) : null; } catch (e) {}
+		return this.iconOf(rec, collGuid);
+	}
+
+	// Floating preview of a line's FULL text on hover (rows only show a snippet).
+	showLinePreview(rowEl, text, ctx, parts) {
+		this.hideLinePreview();
+		if (!text) return;
+		const box = document.createElement('div');
+		box.className = 'mv-linepreview';
+		box.style.setProperty('--mv-accent', this.accentColor());   // box lives on <body>, outside .mv-pop
+		const t = document.createElement('div'); t.className = 'mv-lp-text';
+		t.innerHTML = mvHighlightAll(text, parts);   // bold every match, like the row
+		box.appendChild(t);
+		if (ctx) { const c = document.createElement('div'); c.className = 'mv-lp-ctx'; c.textContent = ctx; box.appendChild(c); }
+		document.body.appendChild(box);
+		this.linePreviewEl = box;
+		// Sit right next to the hovered row: below it, or above it when the row is
+		// near the viewport bottom. Cap the height to the space on the chosen side
+		// so it always fits AND stays attached to the row (never pinned to an edge).
+		const r = rowEl.getBoundingClientRect();
+		const vw = window.innerWidth, vh = window.innerHeight;
+		const belowSpace = vh - r.bottom - 12, aboveSpace = r.top - 12;
+		const placeBelow = belowSpace >= aboveSpace;
+		box.style.maxHeight = Math.max(80, Math.min(placeBelow ? belowSpace : aboveSpace, Math.round(vh * 0.6))) + 'px';
+		const bw = box.offsetWidth, bh = box.offsetHeight;
+		const left = Math.max(8, Math.min(r.left, vw - bw - 8));
+		let top = placeBelow ? r.bottom + 4 : r.top - bh - 4;
+		top = Math.max(8, Math.min(top, vh - bh - 8));
+		box.style.left = left + 'px';
+		box.style.top = top + 'px';
+	}
+	hideLinePreview() {
+		if (this.linePreviewEl) { this.linePreviewEl.remove(); this.linePreviewEl = null; }
+	}
+
+	// Parse a typed query as a journal date ("tomorrow", "next friday",
+	// "2026-07-20", "yesterday", ...). Returns { dt, label } or null, where dt is
+	// a `{toDate()}` shim (getJournalRecord only calls .toDate()), so this works
+	// whether or not Thymer's rich DateTime parser is reachable from a plugin.
+	parseJournalDate(q) {
+		const s = String(q || '').trim();
+		if (!s) return null;
+		let d = null;
+		try {
+			const DT = (typeof DateTime !== 'undefined') ? DateTime : (typeof globalThis !== 'undefined' ? globalThis.DateTime : null);
+			if (DT && DT.parseDateTimeString) {
+				const dt = DT.parseDateTimeString(s);
+				if (dt && typeof dt.toDate === 'function') { const jd = dt.toDate(); if (jd && !isNaN(jd.getTime())) d = jd; }
+			}
+		} catch (e) {}
+		if (!d) d = fallbackJournalDate(s);
+		if (!d) return null;
+		const label = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }).replace(',', '');
+		const jd = d;
+		return { dt: { toDate: () => jd }, label };
 	}
 
 	renderDefaultDestOptions(list) {
@@ -600,16 +747,21 @@ class Plugin extends AppPlugin {
 		journal.className = 'mv-opt';
 		journal.innerHTML = `<span class="ti ti-calendar-event"></span><span class="mv-opt-text">Today's Journal</span><span class="mv-opt-sub">bottom</span>`;
 		this.addDestOpt(list, journal, () => this.moveNow({ kind: 'journal' }));
-		this.sec(list, 'Type to search pages & lines');
+		this.sec(list, 'Type to search pages, lines, or a date');
 	}
 
+	// Search pages by NAME (over the snapshotted record set, like the native @
+	// picker — a title match is what makes a page a good destination) and lines by
+	// their text. "+" is an AND: every part must appear. Pages are ranked by match
+	// quality (exact > prefix > word-start > substring) so the strongest titles
+	// surface first, and each result shows the collection it lives in.
 	async runDestSearch(q, list) {
 		if (!q) { this.renderDefaultDestOptions(list); return; }
 		const my = ++this.searchToken;
 		const moved = (this.scope && this.scope.movedSet) || new Set();
-		const srcGuid = this.scope && this.scope.rguid;
 		const parts = q.split('+').map((p) => mvNorm(p)).filter(Boolean);
 		if (!parts.length) { this.renderDefaultDestOptions(list); return; }
+		const jdate = this.parseJournalDate(q);   // a "Journal · <date>" row when the query reads as a date
 		const terms = new Set();
 		for (const p of parts) {
 			terms.add(p);
@@ -618,21 +770,14 @@ class Plugin extends AppPlugin {
 		}
 		const pageSeen = new Set(), lineSeen = new Set();
 		const pages = [], lines = [];
-		// rank pages ourselves (searchByQuery returns fuzzy hits in arbitrary
-		// order): exact title, then prefix, then word-boundary, then contains
-		const qn = mvNorm(q.replace(/\+/g, ' '));
-		const rankPages = () => {
-			for (const p of pages) {
-				const nn = mvNorm(p.name);
-				p.score = nn === qn ? 0
-					: nn.startsWith(qn) ? 1
-					: (nn.indexOf(' ' + qn) >= 0 ? 2
-					: (nn.indexOf(qn) >= 0 ? 3 : 4));
-			}
-			pages.sort((a, b) => a.score - b.score || a.name.length - b.name.length);
+		const addPage = (rec, guid, name) => {
+			if (!guid || pageSeen.has(guid)) return;
+			pageSeen.add(guid);
+			pages.push({ rec, guid, name: name || 'Untitled', collGuid: this.collGuidOf(rec), score: mvNameScore(mvNorm(name), parts) });
 		};
+		const sortPages = () => pages.sort((a, b) => b.score - a.score || a.name.length - b.name.length || a.name.localeCompare(b.name));
 		const considerLine = (guid, segments, pageFn) => {
-			if (!guid || lineSeen.has(guid) || lines.length >= 24) return;
+			if (!guid || lineSeen.has(guid) || lines.length >= 40) return;
 			lineSeen.add(guid);
 			if (moved.has(guid)) return;   // can't move content into itself
 			// text match FIRST — pageFn (getRecord + getName) only runs for hits
@@ -643,32 +788,27 @@ class Plugin extends AppPlugin {
 			let info = null;
 			try { info = pageFn(); } catch (e) {}
 			if (!info || !info.guid) return;
-			lines.push({ lineGuid: guid, pageGuid: info.guid, text, page: info.name || '' });
+			lines.push({ lineGuid: guid, pageGuid: info.guid, text, page: info.name || '', collGuid: info.collGuid || null });
 		};
+		// 1) PAGES — scan every record's title (snapshotted on open). Comprehensive
+		//    and instant: the record set is the whole workspace map (not the
+		//    virtualised lines), so title matches can't be missed the way a
+		//    line-ranked search misses thin pages.
+		for (const rec of this.recordsCache) {
+			const guid = rowGuid(rec);
+			if (!guid || pageSeen.has(guid)) continue;
+			const name = (rec.getName && rec.getName()) || '';
+			if (!name || !parts.every((p) => mvNorm(name).includes(p))) continue;
+			addPage(rec, guid, name);
+		}
+		sortPages();
+		// loaded lines directly (sees fresh content — searchByQuery's index lags);
+		// cheap raw-text prefilter + time budget keep this fast
 		const byGuid = (window.g_universe && window.g_universe.itemsByGuid) || {};
 		const nowMs = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
-		// 1) all records by NAME directly — searchByQuery's index lags, so a
-		//    just-created page is invisible to it; this scan is authoritative
-		try {
-			const recs = (await this.data.getAllRecords()) || [];
-			const tR = nowMs();
-			for (const r of recs) {
-				if (nowMs() - tR > 120) break;
-				const g = rowGuid(r);
-				if (!g || pageSeen.has(g)) continue;
-				const name = (r.getName && r.getName()) || '';
-				if (!name) continue;
-				const nn = mvNorm(name);
-				if (!parts.every((p) => nn.includes(p))) continue;
-				pageSeen.add(g);
-				pages.push({ rec: r, guid: g, name });
-			}
-		} catch (e) {}
-		// 2) loaded lines directly (sees fresh content — same index-lag reason);
-		//    cheap raw-text prefilter + time budget keep this fast
 		const t0 = nowMs();
 		for (const guid in byGuid) {
-			if (lines.length >= 24 || nowMs() - t0 > 150) break;
+			if (lines.length >= 40 || nowMs() - t0 > 150) break;
 			const it = byGuid[guid];
 			if (!it || it.is_deleted || it.is_trashed || it.type === 'document') continue;
 			if (!it.rguid) continue;
@@ -680,61 +820,76 @@ class Plugin extends AppPlugin {
 			if (!parts.some((p) => rawNorm.includes(p))) continue;
 			considerLine(it.guid || guid, segmentsFromState(it), () => {
 				const r = this.data.getRecord(it.rguid);
-				return r ? { guid: it.rguid, name: r.getName && r.getName() } : null;
+				return r ? { guid: it.rguid, name: r.getName && r.getName(), collGuid: this.collGuidOf(r) } : null;
 			});
 		}
-		rankPages();
-		this.renderDestResults(list, pages, lines, parts, true);
-		// 3) workspace-wide search per term, merged in (token-guarded)
+		this.renderDestResults(list, pages, lines, parts, true, jdate);
+		// 2) workspace-wide search: extra LINE matches beyond what's loaded, plus a
+		//    safety net for any title match the record snapshot might have missed.
+		//    Merged in when it arrives (token-guarded).
 		for (const t of terms) {
 			let res;
-			try { res = await this.data.searchByQuery(t, 40); } catch (e) { res = {}; }
+			try { res = await this.data.searchByQuery(t, 60); } catch (e) { res = {}; }
 			if (my !== this.searchToken) return;
 			for (const r of res.records || []) {
 				const g = rowGuid(r);
 				if (!g || pageSeen.has(g)) continue;
 				const name = (r.getName && r.getName()) || '';
-				if (parts.length > 1 && !parts.every((p) => mvNorm(name).includes(p))) continue;
-				pageSeen.add(g);
-				pages.push({ rec: r, guid: g, name: name || 'Untitled' });
+				if (!parts.every((p) => mvNorm(name).includes(p))) continue;   // NAME match only
+				addPage(r, g, name);
 			}
 			for (const li of res.lines || []) {
 				considerLine(li.guid, li.segments, () => {
 					const r = li.getRecord && li.getRecord();
-					return r ? { guid: rowGuid(r), name: r.getName && r.getName() } : null;
+					return r ? { guid: rowGuid(r), name: r.getName && r.getName(), collGuid: this.collGuidOf(r) } : null;
 				});
 			}
 		}
 		if (my !== this.searchToken) return;
-		rankPages();
-		this.renderDestResults(list, pages, lines, parts, false);
+		sortPages();
+		this.renderDestResults(list, pages, lines, parts, false, jdate);
 	}
 
-	renderDestResults(list, pages, lines, parts, searching) {
+	renderDestResults(list, pages, lines, parts, searching, jdate) {
 		this.resetDestList(list);
+		if (jdate) {
+			this.sec(list, 'Journal');
+			const j = document.createElement('div');
+			j.className = 'mv-opt';
+			j.innerHTML = `<span class="ti ti-calendar-event"></span><span class="mv-opt-text">Journal · ${esc(jdate.label)}</span>`;
+			this.addDestOpt(list, j, () => this.moveNow({ kind: 'journal', date: jdate.dt, dateLabel: jdate.label }));
+		}
 		if (!pages.length && !lines.length) {
-			const e = document.createElement('div'); e.className = 'mv-opt';
-			e.textContent = searching ? 'Searching…' : 'No pages or lines found';
-			list.appendChild(e);
+			if (!jdate) {
+				const e = document.createElement('div'); e.className = 'mv-opt';
+				e.textContent = searching ? 'Searching…' : 'No pages or lines found';
+				list.appendChild(e);
+			}
 			return;
 		}
 		if (pages.length) {
 			this.sec(list, 'Pages');
-			for (const p of pages.slice(0, 8)) {
+			for (const p of pages.slice(0, 12)) {
+				const coll = this.collName(p.collGuid);
 				const opt = document.createElement('div');
 				opt.className = 'mv-opt';
-				opt.innerHTML = `<span class="ti ti-file"></span><span class="mv-opt-text">${mvSnippetHTML(p.name, parts)}</span>`;
-				opt.title = p.name;
+				opt.innerHTML = `<span class="ti ${esc(this.iconOf(p.rec, p.collGuid))}"></span><span class="mv-opt-text">${mvSnippetHTML(p.name, parts)}</span>`;
+				opt.title = p.name + (coll ? ' · ' + coll : '');
 				this.addDestOpt(list, opt, () => this.pickPage(p.rec, list));
 			}
 		}
 		if (lines.length) {
 			this.sec(list, 'Lines');
-			for (const l of lines.slice(0, 8)) {
+			for (const l of lines.slice(0, 10)) {
+				const coll = this.collName(l.collGuid);
 				const opt = document.createElement('div');
 				opt.className = 'mv-opt';
-				opt.innerHTML = `<span class="ti ti-align-left"></span><span class="mv-opt-text">${mvSnippetHTML(l.text, parts)}</span>` + (l.page ? `<span class="mv-opt-sub">${esc(l.page)}</span>` : '');
-				opt.title = l.text + (l.page ? ' · ' + l.page : '');
+				opt.innerHTML = `<span class="ti ${esc(this.iconForPage(l.pageGuid, l.collGuid))}"></span><span class="mv-opt-text">${mvSnippetHTML(l.text, parts)}</span>` + (l.page ? `<span class="mv-opt-sub">${esc(l.page)}</span>` : '');
+				// full-text hover preview (a line can be a whole paragraph the row
+				// snippet truncates); replaces the raw browser title tooltip
+				const ctx = [l.page, coll].filter(Boolean).join(' · ');
+				opt.addEventListener('mouseenter', () => this.showLinePreview(opt, l.text, ctx, parts));
+				opt.addEventListener('mouseleave', () => this.hideLinePreview());
 				this.addDestOpt(list, opt, () => this.moveNow({ kind: 'line', guid: l.lineGuid, pageGuid: l.pageGuid, name: truncate(l.text, 34), pageName: l.page }));
 			}
 		}
@@ -797,7 +952,7 @@ class Plugin extends AppPlugin {
 
 	// ---- journal --------------------------------------------------------------
 
-	async resolveJournalRecord() {
+	async resolveJournalRecord(dt) {
 		const cols = await this.data.getAllCollections();
 		const wsGuid = this.ui.getActivePanel()?.getNavigation()?.workspaceGuid
 			|| (typeof window !== 'undefined' && window.g_universe && window.g_universe.workspaceGuid) || null;
@@ -807,8 +962,9 @@ class Plugin extends AppPlugin {
 			try {
 				if (c.isJournalPlugin && c.isJournalPlugin()) {
 					// ref.guid MUST be the USER guid — the collection guid silently
-					// creates a parallel duplicate journal page
-					return await c.getJournalRecord({ workspaceGuid: wsGuid, guid: userGuid });
+					// creates a parallel duplicate journal page. dt (a DateTime shim)
+					// omitted = today; otherwise that date's journal page.
+					return await c.getJournalRecord({ workspaceGuid: wsGuid, guid: userGuid }, dt);
 				}
 			} catch (e) {}
 		}
@@ -864,9 +1020,9 @@ class Plugin extends AppPlugin {
 		const notMoved = (li) => !movedSet.has(liGuid(li));
 		try {
 			if (dest.kind === 'journal') {
-				destRec = await this.resolveJournalRecord();
+				destRec = await this.resolveJournalRecord(dest.date);
 				if (!destRec) { this.toast('No Journal found in this workspace — pick a page instead.'); return; }
-				destLabel = "today's Journal";
+				destLabel = dest.dateLabel ? ('the Journal, ' + dest.dateLabel) : "today's Journal";
 				parentTarget = destRec;
 				anchor = lastOf(topLevelItems(await destRec.getLineItems(), rowGuid(destRec)).filter(notMoved));
 			} else if (dest.kind === 'line') {
@@ -1008,6 +1164,46 @@ function siblingParent(items, target, rec) {
 }
 function truncate(s, n) { s = String(s == null ? '' : s); return s.length > n ? s.slice(0, n - 1) + '…' : s; }
 function mvNorm(s) { return String(s == null ? '' : s).toLowerCase().replace(/\s+/g, ' ').trim(); }
+// Rank a page-name match: exact > prefix > word-start > plain substring, summed
+// across the "+" parts, so the strongest titles float to the top of the Pages list.
+function mvNameScore(nn, parts) {
+	let s = 0;
+	for (const p of parts) {
+		if (nn === p) s += 100;
+		else if (nn.startsWith(p)) s += 45;
+		else if (nn.includes(' ' + p)) s += 25;
+		else s += 8;
+	}
+	return s;
+}
+// Minimal date fallback (used only if Thymer's DateTime parser is unreachable):
+// ISO YYYY-MM-DD, plus today / tomorrow / yesterday. Returns a JS Date or null.
+function fallbackJournalDate(s) {
+	const t = s.toLowerCase().trim();
+	const today = new Date(); today.setHours(0, 0, 0, 0);
+	if (t === 'today') return today;
+	if (t === 'tomorrow') { const d = new Date(today); d.setDate(d.getDate() + 1); return d; }
+	if (t === 'yesterday') { const d = new Date(today); d.setDate(d.getDate() - 1); return d; }
+	const m = t.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/);
+	if (m) { const d = new Date(+m[1], +m[2] - 1, +m[3]); d.setHours(0, 0, 0, 0); return isNaN(d.getTime()) ? null : d; }
+	return null;
+}
+// Escape + bold EVERY occurrence of the matched words in the full text (no
+// windowing — used by the line hover preview so the search terms stand out).
+function mvHighlightAll(text, parts) {
+	const full = String(text == null ? '' : text);
+	const words = [...new Set((parts || []).concat((parts || []).flatMap((p) => p.split(/\s+/))))].filter((w) => w.length >= 2).sort((a, b) => b.length - a.length);
+	if (!words.length) return esc(full);
+	const escRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+	const re = new RegExp('(' + words.map(escRe).join('|') + ')', 'ig');
+	let html = '', last = 0, m;
+	while ((m = re.exec(full)) !== null) {
+		html += esc(full.slice(last, m.index)) + '<b>' + esc(m[0]) + '</b>';
+		last = m.index + m[0].length;
+		if (m.index === re.lastIndex) re.lastIndex++;
+	}
+	return html + esc(full.slice(last));
+}
 // A short one-line snippet centred on the first matched part, with matched
 // words highlighted (<b>, accent-coloured via CSS).
 function mvSnippetHTML(text, parts) {
