@@ -13,10 +13,10 @@ Press the shortcut (default `Cmd+Shift+M` / `Ctrl+Shift+M`) or run **Move to…*
   - a caret on a **parent line** moves the whole block by default — a toggle in the picker header switches to *Line only*, which leaves the children behind (promoted one level)
   - a caret on a plain line just moves that line
 - **Destinations:**
-  - **Today's Journal** (default — just hit Enter)
+  - **Today's Journal** (default, just hit Enter), or type a date (`tomorrow`, `next friday`, `2026-07-20`) to move it into that day's Journal
   - **any page**, at the top, at the bottom, or under a heading you pick from a list
   - **any individual line**, anywhere in the workspace
-- **Fast search** over pages and lines. Use `+` to require several words: `project+monday` matches lines containing both. Matched words are highlighted.
+- **Fast search** over pages and lines, styled like Thymer's own command palette: each result carries its collection's icon, matched words are highlighted, `+` requires several words (`project+monday` matches lines with both), and hovering a line previews its full text.
 - **Indent toggle** (bottom left): nest the moved content *under* the chosen heading/line, or place it directly *after* it as a sibling. Your choice is remembered.
 - **Keyboard-first:** type to search, `↑↓` to navigate, `↵` to move. A toast with an **Open** button jumps to where the content landed.
 - **Safe:** it refuses to move a block into itself, and never touches your content until you pick a destination. Closing the picker (click outside, `×`, or the shortcut again) changes nothing.
@@ -25,7 +25,7 @@ Press the shortcut (default `Cmd+Shift+M` / `Ctrl+Shift+M`) or run **Move to…*
 
 1. Put the caret on the line you want to move — or select several lines.
 2. Press `Cmd+Shift+M` (`Ctrl+Shift+M` on Windows/Linux), or run **Move to…** from the Command Palette.
-3. Hit Enter to send it to today's Journal, or type to search pages and lines.
+3. Hit Enter to move it to today's Journal, type to search pages and lines, or type a date (like `tomorrow` or `2026-07-20`) to move it into another day's Journal.
    - Picking a page with content shows one more step: *Top of page*, *Bottom of page* (the default on Enter), or a specific heading. Empty pages skip this.
 4. The picker header shows what's being moved. If the line has children you can switch between **Whole block** and **Line only** there.
 5. Use the indent button (bottom left) to choose between nesting under the target and placing after it.
