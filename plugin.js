@@ -170,6 +170,7 @@ class Plugin extends AppPlugin {
 	destOpts = [];
 	destSel = 0;
 	moving = false;
+	newNoteMode = false;
 	collMap = {};           // collection guid -> {name, icon} (built on picker open)
 	recordsCache = [];      // all workspace records, snapshotted on picker open
 	linePreviewEl = null;   // floating full-text preview shown on line hover
@@ -521,6 +522,7 @@ class Plugin extends AppPlugin {
 		this.renderDefaultDestOptions(list);
 		input.addEventListener('input', () => {
 			clearTimeout(this.searchTimer);
+			if (this.newNoteMode) return;
 			const q = input.value.trim();
 			this.searchTimer = setTimeout(() => this.runDestSearch(q, list), 180);
 		});
@@ -615,6 +617,7 @@ class Plugin extends AppPlugin {
 		clearTimeout(this.searchTimer);
 		this.searchToken++;
 		this.destOpts = []; this.destSel = 0;
+		this.newNoteMode = false;
 		this.hideLinePreview();
 		if (this.outsideHandler) { document.removeEventListener('pointerdown', this.outsideHandler, true); this.outsideHandler = null; }
 		if (this.popEl) { this.popEl.remove(); this.popEl = null; }
@@ -747,7 +750,68 @@ class Plugin extends AppPlugin {
 		journal.className = 'mv-opt';
 		journal.innerHTML = `<span class="ti ti-calendar-event"></span><span class="mv-opt-text">Today's Journal</span><span class="mv-opt-sub">bottom</span>`;
 		this.addDestOpt(list, journal, () => this.moveNow({ kind: 'journal' }));
+		const newNote = document.createElement('div');
+		newNote.className = 'mv-opt';
+		newNote.innerHTML = `<span class="ti ti-file-plus"></span><span class="mv-opt-text">New note in a collection…</span>`;
+		this.addDestOpt(list, newNote, () => this.pickNewNote(list));
 		this.sec(list, 'Type to search pages, lines, or a date');
+	}
+
+	async pickNewNote(list) {
+		const input = this.popEl && this.popEl.querySelector('.mv-input');
+		if (!input) return;
+		clearTimeout(this.searchTimer);
+		const my = ++this.searchToken;
+		this.newNoteMode = true;
+		input.value = '';
+		input.placeholder = 'Enter a title for the new note…';
+		this.resetDestList(list);
+		this.sec(list, 'Loading collections…');
+		input.focus();
+
+		let collections = [];
+		try { collections = await this.data.getAllCollections(); } catch (e) {}
+		if (!this.popEl || !this.newNoteMode || my !== this.searchToken) return;
+		collections = (collections || []).filter((c) => {
+			try { return c && typeof c.createRecord === 'function' && !(c.isJournalPlugin && c.isJournalPlugin()); } catch (e) { return false; }
+		});
+
+		this.resetDestList(list);
+		this.sec(list, 'New note');
+		const back = document.createElement('div');
+		back.className = 'mv-opt';
+		back.innerHTML = `<span class="ti ti-arrow-left"></span><span class="mv-opt-text">Back to destinations</span>`;
+		this.addDestOpt(list, back, () => {
+			this.newNoteMode = false;
+			this.searchToken++;
+			input.value = '';
+			input.placeholder = 'Search pages, lines, or a date for the Journal (e.g. "tomorrow")…';
+			this.renderDefaultDestOptions(list);
+			input.focus();
+		});
+		this.sec(list, 'Choose a collection');
+		let firstCollectionIdx = null;
+		for (const c of collections) {
+			let name = 'Collection', icon = 'ti-files';
+			try { name = c.getName() || name; } catch (e) {}
+			try { const conf = c.getConfiguration(); icon = (c.getIcon && c.getIcon()) || (conf && conf.icon) || icon; } catch (e) {}
+			if (!icon.startsWith('ti-')) icon = 'ti-' + icon;
+			const opt = document.createElement('div');
+			opt.className = 'mv-opt';
+			opt.innerHTML = `<span class="ti ${esc(icon)}"></span><span class="mv-opt-text">${esc(name)}</span>`;
+			if (firstCollectionIdx === null) firstCollectionIdx = this.destOpts.length;
+			this.addDestOpt(list, opt, () => {
+				const title = input.value.trim();
+				if (!title) { this.toast('Enter a title for the new note.'); input.focus(); return; }
+				this.moveNow({ kind: 'new', collection: c, name: title, collectionName: name });
+			});
+		}
+		if (firstCollectionIdx === null) {
+			const empty = document.createElement('div'); empty.className = 'mv-opt'; empty.textContent = 'No collections available';
+			list.appendChild(empty);
+		} else {
+			this.setDestSel(firstCollectionIdx);
+		}
 	}
 
 	// Search pages by NAME (over the snapshotted record set, like the native @
@@ -1019,7 +1083,16 @@ class Plugin extends AppPlugin {
 		const indent = !!this.indentUnder;
 		const notMoved = (li) => !movedSet.has(liGuid(li));
 		try {
-			if (dest.kind === 'journal') {
+			if (dest.kind === 'new') {
+				const guid = dest.collection.createRecord(dest.name);
+				if (!guid) { this.toast('Could not create the new note in that collection.'); return; }
+				destRec = this.data.getRecord(guid);
+				if (!destRec) { await wait(40); destRec = this.data.getRecord(guid); }
+				if (!destRec) { this.toast('The new note was created but could not be opened.'); return; }
+				destLabel = dest.name + (dest.collectionName ? ' · ' + dest.collectionName : '');
+				parentTarget = destRec;
+				anchor = null;
+			} else if (dest.kind === 'journal') {
 				destRec = await this.resolveJournalRecord(dest.date);
 				if (!destRec) { this.toast('No Journal found in this workspace — pick a page instead.'); return; }
 				destLabel = dest.dateLabel ? ('the Journal, ' + dest.dateLabel) : "today's Journal";
@@ -1093,7 +1166,10 @@ class Plugin extends AppPlugin {
 		}
 
 		this.close();
-		if (!moved) { this.toast('Nothing was moved.'); return; }
+		if (!moved) {
+			if (dest.kind === 'new') { try { destRec.trash(); } catch (e) {} }
+			this.toast('Nothing was moved.'); return;
+		}
 		const firstGuid = scope.roots.find((g) => movedGuids.has(g)) || null;
 		const destGuid = rowGuid(destRec);
 		const n = lineOnly ? 1 : scope.totalLines;
